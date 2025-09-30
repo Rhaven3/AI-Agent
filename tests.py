@@ -1,13 +1,15 @@
-from functions.write_files import *
+from functions.run_python import *
 
 test_cases = [
-    ("calculator", "lorem.txt", "wait, this isn't lorem ispum"),
-    ("calculator", "pkg/morelorem.txt", "lorem ispum dolor sit amet"),
-    ("calculator", "/tmp/temps.txt", "this should not be allowed"),
+    ("calculator", "main.py", []),
+    ("calculator", "main.py", ["3 + 5"]),
+    ("calculator", "tests.py", []),
+    ("calculator", "../main.py", []),
+    ("calculator", "nonexistent.py", []),
 ]
 
-for working_directory, file, content in test_cases:
-    print(f"Result for '{file}' file:")
-    result = write_files(working_directory, file, content)
+for working_directory, file, args in test_cases:
+    print(f"Result for '{file} {args}' command:")
+    result = run_python_file(working_directory, file, args)
     print(result)
     print("-" * 40)

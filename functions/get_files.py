@@ -1,5 +1,35 @@
 import os
 from config import MAX_CHARS
+from google.genai import types
+
+
+schema_get_files_info = types.FunctionDeclaration(
+    name="get_files_info",
+    description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "directory": types.Schema(
+                type=types.Type.STRING,
+                description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+            ),
+        },
+    ),
+)
+schema_get_files_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Reads the content of a specified file, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The path to the file to read, relative to the working directory.",
+            ),
+        },
+        required=["file_path"],
+    ),
+)
 
 def get_files_info(working_directory, directory="."):
     full_path = os.path.abspath(os.path.join(working_directory, directory))
@@ -23,7 +53,7 @@ def get_files_info(working_directory, directory="."):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def get_files_content(working_directory, file_path):
+def get_file_content(working_directory, file_path):
     full_path = os.path.abspath(os.path.join(working_directory, file_path))
     if not full_path.startswith(os.path.abspath(working_directory)):
         return f'Error: Cannot read "{file_path}" as it is outside the permitted working directory'
