@@ -14,12 +14,16 @@ client = genai.Client(api_key=api_key)
 def main():
     verbose = ""
     is_verbose = False
+    test_verbose = False
     if len(argv) < 2:
         print("Usage: python main.py '<your prompt here>'")
+        # user_prompt = "Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum."
+        # test_verbose =True
         exit(1)
+    else:
+        user_prompt = argv[1]
 
 
-    user_prompt = argv[1]
     system_prompt = """
 You are a helpful AI coding agent.
 
@@ -48,11 +52,11 @@ All paths you provide should be relative to the working directory. You do not ne
     try:
         for i in range(20):  # Limit to 20 iterations to avoid infinite loops
             response = client.models.generate_content(
-                model='gemini-2.0-flash-001', contents=messages,
+                model='gemini-2.5-flash', contents=messages,
                 config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt)
             )
 
-            if len(argv) > 2 and argv[2] == "--verbose":
+            if len(argv) > 2 and argv[2] == "--verbose" or test_verbose:
                 is_verbose = True
                 verbose = f"User prompt: {user_prompt}\nPrompt tokens: {response.usage_metadata.prompt_token_count}\nResponse tokens: {response.usage_metadata.candidates_token_count}\n"
 
