@@ -1,10 +1,7 @@
 [project]
-name = "ai-agent"
+name = "BuildAnAIAgentInPython"
 version = "0.1.0"
-description = "Add your description here"
+description = "Boot.dev course: Build an AI agent in Python"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "google-genai==1.12.1",
-    "python-dotenv==1.1.0",
-]
+requires-python = ">=3.13"
+dependencies = ["google-genai==1.12.1", "python-dotenv==1.1.0"]

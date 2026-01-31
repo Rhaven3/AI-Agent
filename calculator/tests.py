@@ -1,6 +1,5 @@
-# tests.py
-
 import unittest
+
 from pkg.calculator import Calculator
 
 
@@ -43,7 +42,3 @@ class TestCalculator(unittest.TestCase):
     def test_not_enough_operands(self):
         with self.assertRaises(ValueError):
             self.calculator.evaluate("+ 3")
-
-
-if __name__ == "__main__":
-    unittest.main()

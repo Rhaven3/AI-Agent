@@ -1,119 +1,84 @@
+import argparse
 import os
-from sys import argv, exit
+import sys
+
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-import functions.get_files as get
-import functions.write_files as write
-import functions.run_python as run
 
-load_dotenv()
-api_key = os.environ.get("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+from call_function import available_functions, call_function
+from config import MAX_ITERS
+from prompts import system_prompt
+
 
 def main():
-    verbose = ""
-    is_verbose = False
-    test_verbose = False
-    if len(argv) < 2:
-        print("Usage: python main.py '<your prompt here>'")
-        # user_prompt = "Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum."
-        # test_verbose =True
-        exit(1)
-    else:
-        user_prompt = argv[1]
+    parser = argparse.ArgumentParser(description="AI Code Assistant")
+    parser.add_argument("user_prompt", type=str, help="Prompt to send to Gemini")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    args = parser.parse_args()
+
+    load_dotenv()
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY environment variable not set")
+
+    client = genai.Client(api_key=api_key)
+    messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}\n")
+
+    for _ in range(MAX_ITERS):
+        try:
+            final_response = generate_content(client, messages, args.verbose)
+            if final_response:
+                print("Final response:")
+                print(final_response)
+                return
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
+
+    print(f"Maximum iterations ({MAX_ITERS}) reached")
+    sys.exit(1)
 
 
-    system_prompt = """
-You are a helpful AI coding agent.
-
-When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
-
-- List files and directories
-- Read file contents
-- Execute Python files with optional arguments
-- Write or overwrite files
-
-All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
-"""
-
-    messages = [
-        types.Content(role="user", parts=[types.Part(text=user_prompt)]),
-    ]
-
-    available_functions = types.Tool(
-        function_declarations=[
-            get.schema_get_files_info,
-            get.schema_get_files_content,
-            write.schema_write_files,
-            run.schema_run_python_file,
-        ]
+def generate_content(client, messages, verbose):
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+        ),
     )
-    try:
-        for i in range(20):  # Limit to 20 iterations to avoid infinite loops
-            response = client.models.generate_content(
-                model='gemini-2.5-flash', contents=messages,
-                config=types.GenerateContentConfig(tools=[available_functions], system_instruction=system_prompt)
-            )
+    if not response.usage_metadata:
+        raise RuntimeError("Gemini API response appears to be malformed")
 
-            if len(argv) > 2 and argv[2] == "--verbose" or test_verbose:
-                is_verbose = True
-                verbose = f"User prompt: {user_prompt}\nPrompt tokens: {response.usage_metadata.prompt_token_count}\nResponse tokens: {response.usage_metadata.candidates_token_count}\n"
-
-            if response.candidates:
-                for candidate in response.candidates:
-                    messages.append(candidate.content)
-
-            if response.function_calls: 
-                for funct in response.function_calls:
-                    call_content = call_function(funct, is_verbose)
-                    messages.append(call_content)
-                    if not call_content.parts or not call_content.parts[0].function_response.response:
-                        raise Exception("FATAL: No response from function call")
-                    if is_verbose:
-                        print(f"-> {call_content.parts[0].function_response.response}")
-                        
-
-            if response.text and not response.function_calls:
-                print(f"{verbose}Final Response: {response.text}")
-                break  # Exit if we get a direct text response
-    except Exception as e:
-        print(f"Error during API call: {str(e)}")
-
-
-def call_function(function_call_part, verbose=False):
     if verbose:
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
-    else:
-        print(f" - Calling function: {function_call_part.name}")
-    
-    working_directory = os.path.abspath("./calculator")
-    function_map = {
-        "get_files_info": get.get_files_info,
-        "get_file_content": get.get_file_content,
-        "write_files": write.write_files,
-        "run_python_file": run.run_python_file,
-    }
-    if function_call_part.name not in function_map:
-        return types.Content(
-            role="user",
-            parts=[
-                types.Part.from_function_response(
-                name=function_call_part.name,
-                response={"error": f"Unknown function: {function_call_part.name}"},
-                )
-            ],
-        )
-    result = function_map[function_call_part.name](working_directory, **function_call_part.args)
-    return types.Content(
-        role="user",
-        parts=[
-            types.Part.from_function_response(
-                name=function_call_part.name,
-                response={"result": result},
-            )
-        ],
-    )
+        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+        print("Response tokens:", response.usage_metadata.candidates_token_count)
+
+    if response.candidates:
+        for candidate in response.candidates:
+            if candidate.content:
+                messages.append(candidate.content)
+
+    if not response.function_calls:
+        return response.text
+
+    function_responses = []
+    for function_call in response.function_calls:
+        result = call_function(function_call, verbose)
+        if (
+            not result.parts
+            or not result.parts[0].function_response
+            or not result.parts[0].function_response.response
+        ):
+            raise RuntimeError(f"Empty function response for {function_call.name}")
+        if verbose:
+            print(f"-> {result.parts[0].function_response.response}")
+        function_responses.append(result.parts[0])
+
+    messages.append(types.Content(role="user", parts=function_responses))
+
 
 if __name__ == "__main__":
     main()
