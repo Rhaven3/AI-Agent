@@ -41,15 +41,28 @@ Final response:
 
 ## How to build it
 
-Clone the repository and navigate to the project directory.
+### Prerequisites
+
+- Python 3.10+ installed
+- uv project/package manager (see [installation docs](https://github.com/astral-sh/uv#installation))
+- An API key from [Google's Gemini API](https://ai.google.dev/gemini-api/docs/pricing)
+
+---
+
+(optional if you already have your own api key)
+1. Create an account on [Google AI Studio](aistudio.google.com/api-keys) if you don't already have one.
+2. Click the "Create API Key" button. Here are the [docs](https://ai.google.dev/gemini-api/docs/api-key) if you get lost.
+
+3. Clone the repository and navigate to the project directory.
 ```bash
 git clone https://github.com/Rhaven3/AI-Agent
 ```
 
-Configure your API key in the ``.env`` file:
+4. Configure your API key in the ``.env`` file:
 ```bash
 GEMINI_API_KEY="your_api_key_here"
 ```
+
 
 
 
